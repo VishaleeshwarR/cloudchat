@@ -125,22 +125,23 @@ const ProfileDrawer: React.FC<ProfileDrawerProps> = ({
                                                                         sm:flex-shrink-0
                                                                         "
                                                                     >
-                                                                        Emails
-                                                                    </dt>
-                                                                    {data.users.map((user) => (
-                                                                        <dd
-                                                                            className="
-                                                                                mt-1 
-                                                                                text-sm 
-                                                                                text-gray-900 
-                                                                                sm:col-span-2
-                                                                            "
-                                                                        >
-                                                                            {user.email}
-                                                                        </dd>
+                                                                    <dt>Emails</dt>
+                                                                    
+                                                                    {data.users.map((user, index) => (
+                                                                      <dd
+                                                                        key={user.id || index} // 👈 Added key prop here
+                                                                        className="
+                                                                          mt-1 
+                                                                          text-sm 
+                                                                          text-gray-900 
+                                                                          sm:col-span-2
+                                                                        "
+                                                                      >
+                                                                        {user.email}
+                                                                      </dd>
                                                                     ))}
-                                                                </div>
-                                                            )}
+
+
                                                             {!data.isGroup && (
                                                                 <div>
                                                                     <dt
