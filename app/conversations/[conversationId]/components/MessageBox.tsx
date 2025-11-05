@@ -20,11 +20,10 @@ const MessageBox: React.FC<MessageBoxProps> = ({ data, isLast }) => {
 
   const isOwn = session?.data?.user?.email === data?.sender?.email;
 
-  const seenList = (data.seenRecords || [])
-    .map((record) => record.user)
-    .filter((user) => user.email !== data?.sender?.email)
-    .map((user) => user.name)
-    .join(", ");
+ const seenList = (data.seen || [])
+  .filter((user) => user.email !== data?.sender?.email)
+  .map((user) => user.name)
+  .join(", ");
 
   const container = clsx("flex gap-3 p-4", isOwn && "justify-end");
   const avatar = clsx(isOwn && "order-2");
