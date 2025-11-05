@@ -3,36 +3,34 @@ import getConversations from "../actions/getConverations";
 import getUsers from "../actions/getUsers";
 import Sidebar from "../components/sidebar/Sidebar";
 import ConversationList from "./components/ConversationList";
-import getSession from "../actions/getSession";
-import { redirect } from "next/navigation";
+import getSession from '../actions/getSession';
+import { redirect } from 'next/navigation'
 
 export default async function ConversationsLayout({
-  children,
+    children
 }: {
-  children: React.ReactNode;
-}) {
-  const session = await getSession();
+    children: React.ReactNode,
+    }) {
 
-  if (!session) {
-    redirect("/");
-  }
+    const session = await getSession();
 
-  const conversations = await getConversations();
-  const users = await getUsers();
+    if (!session) {
+        redirect('/');
+    };
 
-  // ✅ Fix: map participants → users for frontend compatibility
-  const formattedConversations = conversations.map((conv) => ({
-    ...conv,
-    users: conv.participants.map((p) => p.user),
-  }));
+    const conversations = await getConversations();
+    const users = await getUsers();
 
-  return (
-    // @ts-expect-error Server Component
-    <Sidebar>
-      <div className="h-full">
-        <ConversationList users={users} initialItems={formattedConversations} />
-        {children}
-      </div>
-    </Sidebar>
-  );
+    return (
+        // @ts-expect-error Server Component
+        <Sidebar>
+            <div className="h-full">
+                <ConversationList
+                    users={users}
+                    initialItems={conversations}
+                />
+                {children}
+            </div>
+        </Sidebar>
+    )
 }
