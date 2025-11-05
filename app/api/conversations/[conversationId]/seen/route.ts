@@ -1,84 +1,86 @@
-import prisma from "@/app/libs/prismadb";
+import { NextResponse } from "next/server";
 import getCurrentUser from "@/app/actions/getCurrentUser";
+import prisma from "@/app/libs/prismadb";
+import { pusherServer } from "@/app/libs/pusher";
 
 interface IParams {
-  conversationId?: string;
-}
+    conversationId?: string;
+};
 
 export async function POST(
-  request: Request,
-  { params }: { params: IParams }
+    request: Request,
+    { params }: { params: IParams }
 ) {
-  try {
-    const currentUser = await getCurrentUser();
-    const { conversationId } = params;
+    try {
+        const currentUser = await getCurrentUser();
+        const {
+            conversationId
+        } = params;
 
-    if (!currentUser?.id) {
-      return new Response("Unauthorized", { status: 401 });
-    }
+        if (!currentUser?.id || !currentUser?.email) {
+            return new NextResponse('Unauthorized', { status: 401 });
+        }
 
-    // ✅ Fetch the conversation and its messages
-    const conversation = await prisma.conversation.findUnique({
-      where: {
-        id: conversationId,
-      },
-      include: {
-        messages: {
-          include: {
-            sender: true,
-            seenRecords: {
-              include: { user: true },
+        // Find existing conversation
+        const conversation = await prisma.conversation.findUnique({
+            where: {
+                id: conversationId
             },
-          },
-        },
-        participants: {
-          include: { user: true },
-        },
-      },
-    });
+            include: {
+                messages: {
+                    include: {
+                        seen: true
+                    },
+                },
+                users: true,
+            },
+        });
 
-    if (!conversation) {
-      return new Response("Invalid conversation ID", { status: 400 });
+        if (!conversation) {
+            return new NextResponse('Invalid ID', { status: 400 });
+        }
+
+        // Find last message
+        const lastMessage = conversation.messages[conversation.messages.length - 1];
+
+        if (!lastMessage) {
+            return NextResponse.json(conversation);
+        }
+
+        const updatedMessage = await prisma.message.update({
+            where: {
+                id: lastMessage.id
+            },
+            include: {
+                sender: true,
+                seen: true,
+            },
+            data: {
+                seen: {
+                    connect: {
+                        id: currentUser.id
+                    }
+                }
+            }
+        });
+
+        // // Update all connections with new seen
+        await pusherServer.trigger(currentUser.email, 'conversation:update', {
+            id: conversationId,
+            messages: [updatedMessage]
+        });
+
+        // If user has already seen the message, no need to go further
+        if (lastMessage.seenIds.indexOf(currentUser.id) !== -1) {
+            return NextResponse.json(conversation);
+        }
+
+        // // Update last message seen
+        await pusherServer.trigger(conversationId!, 'message:update', updatedMessage);
+
+        return new NextResponse('Success');
     }
-
-    // ✅ Get the last message
-    const lastMessage = conversation.messages[conversation.messages.length - 1];
-
-    if (!lastMessage) {
-      return new Response("No messages found", { status: 200 });
+    catch (error: any) {
+        return new NextResponse('Error', { status: 500 });
     }
-
-    // ✅ Check if already seen by user
-    const alreadySeen = await prisma.seenRecord.findFirst({
-      where: {
-        userId: currentUser.id,
-        messageId: lastMessage.id,
-      },
-    });
-
-    if (!alreadySeen) {
-      await prisma.seenRecord.create({
-        data: {
-          userId: currentUser.id,
-          messageId: lastMessage.id,
-        },
-      });
-    }
-
-    // ✅ Re-fetch updated message
-    const updatedMessage = await prisma.message.findUnique({
-      where: { id: lastMessage.id },
-      include: {
-        sender: true,
-        seenRecords: {
-          include: { user: true },
-        },
-      },
-    });
-
-    return new Response(JSON.stringify(updatedMessage), { status: 200 });
-  } catch (error) {
-    console.error("[SEEN_POST_ERROR]", error);
-    return new Response("Internal Server Error", { status: 500 });
-  }
 }
