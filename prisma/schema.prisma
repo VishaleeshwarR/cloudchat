@@ -8,33 +8,33 @@ datasource db {
 }
 
 model User {
-  id             String          @id @default(auto()) @map("_id") @db.ObjectId
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
   name           String?
-  email          String?         @unique
+  email          String?   @unique
   emailVerified  DateTime?
   image          String?
   hashedPassword String?
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   accounts       Account[]
   messages       Message[]
-  conversations  Conversation[]  @relation("UserConversations")
-  seenMessages   Message[]       @relation("UserSeenMessages")
+  participants   Participant[]
+  seenRecords    SeenRecord[]
 }
 
 model Account {
-  id                String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId            String   @db.ObjectId
+  id                String  @id @default(auto()) @map("_id") @db.ObjectId
+  userId            String  @db.ObjectId
   type              String
   provider          String
   providerAccountId String
-  refresh_token     String?  @db.String
-  access_token      String?  @db.String
+  refresh_token     String? @db.String
+  access_token      String? @db.String
   expires_at        Int?
   token_type        String?
   scope             String?
-  id_token          String?  @db.String
+  id_token          String? @db.String
   session_state     String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -43,14 +43,14 @@ model Account {
 }
 
 model Conversation {
-  id            String    @id @default(auto()) @map("_id") @db.ObjectId
-  createdAt     DateTime  @default(now())
-  lastMessageAt DateTime  @default(now())
+  id            String        @id @default(auto()) @map("_id") @db.ObjectId
+  createdAt     DateTime      @default(now())
+  lastMessageAt DateTime      @default(now())
   name          String?
-  isGroup       Boolean   @default(false)
+  isGroup       Boolean       @default(false)
 
-  messages      Message[] @relation("ConversationMessages")
-  users         User[]    @relation("UserConversations")
+  messages      Message[]
+  participants  Participant[]
 }
 
 model Message {
@@ -58,12 +58,34 @@ model Message {
   body           String?
   image          String?
   createdAt      DateTime      @default(now())
-  
-  seen           User[]        @relation("UserSeenMessages")
-  conversation   Conversation? @relation("ConversationMessages", fields: [conversationId], references: [id])
-  conversationId String?       @db.ObjectId
 
-  sender         User?         @relation(fields: [senderId], references: [id])
+  conversationId String?       @db.ObjectId
+  conversation   Conversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
   senderId       String?       @db.ObjectId
+  sender         User?         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  seenRecords    SeenRecord[]
 }
+
+model Participant {
+  id              String        @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String        @db.ObjectId
+  conversationId  String        @db.ObjectId
+  joinedAt        DateTime      @default(now())
+
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversation    Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+}
+
+model SeenRecord {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId     String   @db.ObjectId
+  messageId  String   @db.ObjectId
+  seenAt     DateTime @default(now())
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message    Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+}
+
 
